@@ -1,7 +1,7 @@
 from pipeline_execution_planner.contract import (
     ExecutionPlan,
-    PlannedPipeline,
     PlanIssue,
+    PlannedPipeline,
     blocked_plan,
     ready_plan,
 )
