@@ -3,8 +3,8 @@ from __future__ import annotations
 from typing import Any
 
 from pipeline_execution_planner.contract import (
-    PlannedPipeline,
     PlanIssue,
+    PlannedPipeline,
     blocked_plan,
     ready_plan,
 )
@@ -25,6 +25,42 @@ def issue_from_payload(payload: dict[str, Any], default_code: str) -> PlanIssue:
         message=str(payload.get("message", "Unknown issue.")),
         pipeline_id=payload.get("pipeline_id"),
     )
+
+
+def collect_blocked_pipeline_ids(issues: list[PlanIssue]) -> set[str]:
+    blocked: set[str] = set()
+
+    for issue in issues:
+        if issue.pipeline_id:
+            blocked.add(issue.pipeline_id)
+
+    return blocked
+
+
+def build_planned_pipelines(
+    execution_order: list[str],
+    blocked_ids: set[str],
+) -> list[PlannedPipeline]:
+    pipelines: list[PlannedPipeline] = []
+
+    for pipeline_id in execution_order:
+        if pipeline_id in blocked_ids:
+            pipelines.append(
+                PlannedPipeline(
+                    pipeline_id=pipeline_id,
+                    status="blocked",
+                    reason="plan_blocked",
+                )
+            )
+        else:
+            pipelines.append(
+                PlannedPipeline(
+                    pipeline_id=pipeline_id,
+                    status="ready",
+                )
+            )
+
+    return pipelines
 
 
 def build_execution_plan(
@@ -57,24 +93,22 @@ def build_execution_plan(
     execution_order = get_execution_order(dependency_report)
 
     if issues:
+        blocked_ids = collect_blocked_pipeline_ids(issues)
+
+        if not blocked_ids:
+            blocked_ids = set(execution_order)
+
         return blocked_plan(
-            pipelines=[
-                PlannedPipeline(
-                    pipeline_id=pipeline_id,
-                    status="blocked",
-                    reason="plan_blocked",
-                )
-                for pipeline_id in execution_order
-            ],
+            pipelines=build_planned_pipelines(
+                execution_order=execution_order,
+                blocked_ids=blocked_ids,
+            ),
             issues=issues,
         )
 
     return ready_plan(
-        pipelines=[
-            PlannedPipeline(
-                pipeline_id=pipeline_id,
-                status="ready",
-            )
-            for pipeline_id in execution_order
-        ]
+        pipelines=build_planned_pipelines(
+            execution_order=execution_order,
+            blocked_ids=set(),
+        )
     )

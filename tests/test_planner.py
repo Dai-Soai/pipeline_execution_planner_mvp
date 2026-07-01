@@ -1,5 +1,7 @@
 from pipeline_execution_planner.planner import (
     build_execution_plan,
+    build_planned_pipelines,
+    collect_blocked_pipeline_ids,
     issue_from_payload,
 )
 
@@ -110,3 +112,56 @@ def test_build_execution_plan_blocked_by_both_reports():
     assert plan.status == "blocked"
     assert plan.blocked_count == 3
     assert plan.issue_count == 2
+
+
+def test_collect_blocked_pipeline_ids():
+    issue = issue_from_payload(
+        {
+            "code": "validation_failed",
+            "message": "Validation failed.",
+            "pipeline_id": "workflow",
+        },
+        default_code="validation_failed",
+    )
+
+    assert collect_blocked_pipeline_ids([issue]) == {"workflow"}
+
+
+def test_build_planned_pipelines_with_blocked_ids():
+    pipelines = build_planned_pipelines(
+        execution_order=["database", "prepare", "workflow"],
+        blocked_ids={"workflow"},
+    )
+
+    assert pipelines[0].status == "ready"
+    assert pipelines[1].status == "ready"
+    assert pipelines[2].status == "blocked"
+    assert pipelines[2].reason == "plan_blocked"
+
+
+def test_build_execution_plan_partially_blocked_by_pipeline_id():
+    dependency_report = {
+        "ok": True,
+        "execution_order": ["database", "prepare", "workflow"],
+        "issues": [],
+    }
+    validation_report = {
+        "ok": False,
+        "issues": [
+            {
+                "code": "file_not_found",
+                "message": "File not found.",
+                "pipeline_id": "workflow",
+            }
+        ],
+    }
+
+    plan = build_execution_plan(
+        dependency_report=dependency_report,
+        validation_report=validation_report,
+    )
+
+    assert plan.ok is False
+    assert plan.ready_count == 2
+    assert plan.blocked_count == 1
+    assert plan.blocked_pipelines[0].pipeline_id == "workflow"
