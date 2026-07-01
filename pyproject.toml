@@ -1,0 +1,13 @@
+[project]
+name = "pipeline-execution-planner-mvp"
+version = "0.1.0"
+description = "A minimal execution planner for RADAR Services automation pipelines."
+requires-python = ">=3.10"
+dependencies = []
+
+[project.scripts]
+pipeline-planner = "pipeline_execution_planner.cli:main"
+
+[tool.pytest.ini_options]
+pythonpath = ["src"]
+testpaths = ["tests"]
