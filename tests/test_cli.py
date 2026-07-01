@@ -134,3 +134,52 @@ def test_cli_plan_missing_report(monkeypatch, capsys):
 
     assert exit_code == 1
     assert "Execution planning failed to start" in captured.err
+
+
+def test_cli_plan_report_json(tmp_path: Path, monkeypatch, capsys):
+    dependency_report = tmp_path / "dependency.report.json"
+    validation_report = tmp_path / "validation.report.json"
+    plan_report = tmp_path / "execution.plan.json"
+
+    dependency_report.write_text(
+        """
+{
+  "ok": true,
+  "execution_order": ["database", "prepare", "workflow"],
+  "issues": []
+}
+""",
+        encoding="utf-8",
+    )
+
+    validation_report.write_text(
+        """
+{
+  "ok": true,
+  "error_count": 0,
+  "issues": []
+}
+""",
+        encoding="utf-8",
+    )
+
+    monkeypatch.setattr(
+        "sys.argv",
+        [
+            "pipeline-planner",
+            "plan",
+            "--dependency-report",
+            str(dependency_report),
+            "--validation-report",
+            str(validation_report),
+            "--report-json",
+            str(plan_report),
+        ],
+    )
+
+    exit_code = main()
+    captured = capsys.readouterr()
+
+    assert exit_code == 0
+    assert "Execution plan report written:" in captured.out
+    assert plan_report.exists()

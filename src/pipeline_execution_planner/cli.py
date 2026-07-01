@@ -2,12 +2,14 @@ from __future__ import annotations
 
 import argparse
 import sys
+from pathlib import Path
 
 from pipeline_execution_planner.dependency_loader import (
     DependencyReportLoadError,
     load_dependency_report,
 )
 from pipeline_execution_planner.planner import build_execution_plan
+from pipeline_execution_planner.reporter import write_plan_report
 from pipeline_execution_planner.validation_loader import (
     ValidationReportLoadError,
     load_validation_report,
@@ -35,6 +37,10 @@ def build_parser() -> argparse.ArgumentParser:
         "--validation-report",
         required=True,
         help="Validation report JSON.",
+    )
+    plan_parser.add_argument(
+        "--report-json",
+        help="Write execution plan JSON report.",
     )
 
     return parser
@@ -77,6 +83,13 @@ def run_plan_command(args: argparse.Namespace) -> int:
     )
 
     print_execution_plan(plan)
+
+    if args.report_json:
+        report_path = write_plan_report(
+            plan,
+            Path(args.report_json),
+        )
+        print(f"Execution plan report written: {report_path}")
 
     return 0 if plan.ok else 1
 
